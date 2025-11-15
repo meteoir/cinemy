@@ -13,7 +13,7 @@ interface StatCardProps {
 
 const StatCard: React.FC<StatCardProps> = ({ icon, label, value }) => (
     <div className="bg-surface dark:bg-dark-surface p-4 rounded-lg shadow-card flex items-start gap-4">
-        <div className="bg-primary-light dark:bg-dark-primary-light p-2 rounded-full text-primary dark:text-dark-primary">
+        <div className="bg-primary-light dark:bg-dark-primary-light p-3 rounded-full text-primary dark:text-dark-primary">
             {icon}
         </div>
         <div>
@@ -26,49 +26,55 @@ const StatCard: React.FC<StatCardProps> = ({ icon, label, value }) => (
 interface BarChartProps {
     title: string;
     data: { label: string; value: number }[];
-    total: number;
 }
 
-const BarChart: React.FC<BarChartProps> = ({ title, data, total }) => (
-    <div className="bg-surface dark:bg-dark-surface p-6 rounded-lg shadow-card">
-        <h3 className="text-lg font-semibold text-text-primary dark:text-dark-text-primary">{title}</h3>
-        <div className="mt-4 space-y-3">
-            {data.map(({ label, value }) => (
-                <div key={label}>
-                    <div className="flex justify-between text-sm mb-1">
-                        <span className="font-medium text-text-primary dark:text-dark-text-primary">{label}</span>
-                        <span className="text-text-secondary dark:text-dark-text-secondary">{value} сцен</span>
+const BarChart: React.FC<BarChartProps> = ({ title, data }) => {
+    const total = useMemo(() => data.reduce((sum, item) => sum + item.value, 0), [data]);
+    const max = useMemo(() => Math.max(...data.map(item => item.value), 0), [data]);
+
+    return (
+        <div className="bg-surface dark:bg-dark-surface p-6 rounded-lg shadow-card">
+            <h3 className="text-lg font-semibold text-text-primary dark:text-dark-text-primary">{title}</h3>
+            <div className="mt-4 space-y-3">
+                {data.slice(0, 7).map(({ label, value }) => (
+                    <div key={label}>
+                        <div className="flex justify-between text-sm mb-1">
+                            <span className="font-medium text-text-primary dark:text-dark-text-primary truncate" title={label}>{label}</span>
+                            <span className="text-text-secondary dark:text-dark-text-secondary">{value} сцен</span>
+                        </div>
+                        <div className="w-full bg-secondary dark:bg-dark-secondary rounded-full h-2">
+                            <div 
+                                className="bg-primary dark:bg-dark-primary h-2 rounded-full" 
+                                style={{ width: max > 0 ? `${(value / max) * 100}%` : '0%' }}
+                            ></div>
+                        </div>
                     </div>
-                    <div className="w-full bg-secondary dark:bg-dark-secondary rounded-full h-2">
-                        <div 
-                            className="bg-primary dark:bg-dark-primary h-2 rounded-full" 
-                            style={{ width: `${(value / total) * 100}%` }}
-                        ></div>
-                    </div>
-                </div>
-            ))}
+                ))}
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 const StatisticsView: React.FC<StatisticsViewProps> = ({ data }) => {
     const stats = useMemo(() => {
         const locations = new Set(data.map(s => s.location));
         const characters = new Set(data.flatMap(s => s.characters));
-        const dayScenes = data.filter(s => s.timeOfDay === 'День' || s.timeOfDay === 'Утро').length;
-        const nightScenes = data.filter(s => s.timeOfDay === 'Вечер' || s.timeOfDay === 'Ночь').length;
+        const dayScenes = data.filter(s => s.timeOfDay.toLowerCase() === 'день' || s.timeOfDay.toLowerCase() === 'утро').length;
+        const nightScenes = data.filter(s => s.timeOfDay.toLowerCase() === 'вечер' || s.timeOfDay.toLowerCase() === 'ночь').length;
 
-        const locationCounts = data.reduce((acc, scene) => {
+        // FIX: Explicitly type the accumulator for the reduce function to ensure correct type inference.
+        const locationCounts = data.reduce<Record<string, number>>((acc, scene) => {
             acc[scene.location] = (acc[scene.location] || 0) + 1;
             return acc;
-        }, {} as Record<string, number>);
+        }, {});
 
-        const characterCounts = data.reduce((acc, scene) => {
+        // FIX: Explicitly type the accumulator for the reduce function to ensure correct type inference.
+        const characterCounts = data.reduce<Record<string, number>>((acc, scene) => {
             scene.characters.forEach(char => {
                 acc[char] = (acc[char] || 0) + 1;
             });
             return acc;
-        }, {} as Record<string, number>);
+        }, {});
 
         const sortedLocations = Object.entries(locationCounts).sort(([,a], [,b]) => b - a).map(([label, value]) => ({ label, value }));
         const sortedCharacters = Object.entries(characterCounts).sort(([,a], [,b]) => b - a).map(([label, value]) => ({ label, value }));
@@ -84,14 +90,11 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ data }) => {
     }, [data]);
 
     const ICONS = {
-        scenes: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><rect x="7" y="7" width="3" height="9"></rect><rect x="14" y="7" width="3" height="5"></rect></svg>,
-        locations: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>,
-        characters: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
-        time: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        scenes: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125a1.125 1.125 0 00-1.125 1.125v12.75c0 .621.504 1.125 1.125 1.125z" /></svg>,
+        locations: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>,
+        characters: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>,
+        time: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
     };
-
-    const maxLocationCount = Math.max(...stats.locationDistribution.map(item => item.value), 1);
-    const maxCharacterCount = Math.max(...stats.characterDistribution.map(item => item.value), 1);
 
     return (
         <div className="space-y-6">
@@ -102,8 +105,8 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ data }) => {
                 <StatCard icon={ICONS.time} label="День / Ночь" value={stats.dayNight} />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <BarChart title="Распределение по локациям" data={stats.locationDistribution} total={maxLocationCount} />
-                <BarChart title="Главные персонажи" data={stats.characterDistribution} total={maxCharacterCount} />
+                <BarChart title="Распределение по локациям" data={stats.locationDistribution} />
+                <BarChart title="Главные персонажи" data={stats.characterDistribution} />
             </div>
         </div>
     );

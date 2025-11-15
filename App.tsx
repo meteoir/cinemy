@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { SceneData } from './types';
+import type { SceneData, AnalysisOptions } from './types';
 import { processScript } from './services/aiService';
 
 import FileUpload from './components/FileUpload';
@@ -12,12 +12,17 @@ type Theme = 'light' | 'dark';
 type Tab = 'upload' | 'table' | 'stats' | 'export';
 
 const SunIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.95-4.243l-1.59-1.59M3 12h2.25m.386-6.364l1.59 1.591M12 12a2.25 2.25 0 00-2.25 2.25 2.25 2.25 0 002.25 2.25 2.25 2.25 0 002.25-2.25A2.25 2.25 0 0012 12z" />
+  </svg>
 );
 
 const MoonIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+  </svg>
 );
+
 
 const App: React.FC = () => {
   const [theme, setTheme] = useState<Theme>('light');
@@ -28,7 +33,6 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Prefers dark theme if user's system is set to dark
     const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     setTheme(prefersDark ? 'dark' : 'light');
   }, []);
@@ -43,18 +47,27 @@ const App: React.FC = () => {
 
   const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
 
-  const handleFileUpload = async (file: File) => {
+  const handleFileUpload = async (file: File, options: AnalysisOptions) => {
     setIsProcessing(true);
     setFileName(file.name);
     setError(null);
     setProcessedData(null);
+    setActiveTab('table'); // Switch view immediately to processing view
+
     try {
-      const data = await processScript(file);
+      const data = await processScript(file, options);
       setProcessedData(data);
       setActiveTab('table');
     } catch (err) {
-      setError('Не удалось обработать сценарий. Пожалуйста, попробуйте другой файл.');
+      console.error("Error during script processing:", err);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+       if (errorMessage.includes("Unsupported MIME type") || errorMessage.toLowerCase().includes("file format is not supported")) {
+           setError('Этот тип файла не поддерживается для анализа. Пожалуйста, используйте PDF или DOCX.');
+      } else {
+           setError('Не удалось обработать сценарий. Убедитесь, что файл не поврежден и попробуйте снова.');
+      }
       setProcessedData(null);
+      setActiveTab('upload');
     } finally {
       setIsProcessing(false);
     }
@@ -81,7 +94,7 @@ const App: React.FC = () => {
   );
 
   const renderContent = () => {
-    if (isProcessing && activeTab !== 'upload') {
+    if (isProcessing) {
         return <ProcessingView fileName={fileName} />;
     }
 

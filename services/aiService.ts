@@ -1,107 +1,128 @@
-import type { SceneData } from '../types';
+import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
+import type { SceneData, AnalysisOptions } from '../types';
 
-// This is a MOCK service that returns data consistent with the screenshots.
-const MOCK_DATA: SceneData[] = [
-  {
-    id: 1,
-    location: 'Офис редакции',
-    timeOfDay: 'День',
-    characters: ['Анна', 'Борис', 'Сергей'],
-    props: ['Ноутбук', 'Кофе', 'Документы'],
-    sfx: [],
-    extras: '5-7 человек',
-    makeup: [],
-    transport: [],
-  },
-  {
-    id: 2,
-    location: 'Улица города',
-    timeOfDay: 'Вечер',
-    characters: ['Анна', 'Виктор'],
-    props: ['Автомобиль', 'Телефон'],
-    sfx: ['Дождь'],
-    extras: '15-20 человек',
-    makeup: [],
-    transport: [],
-  },
-  {
-    id: 3,
-    location: 'Кафе',
-    timeOfDay: 'День',
-    characters: ['Анна', 'Марина'],
-    props: ['Меню', 'Посуда'],
-    sfx: [],
-    extras: '3-5 человек',
-    makeup: [],
-    transport: [],
-  },
-  {
-    id: 4,
-    location: 'Парк',
-    timeOfDay: 'День',
-    characters: ['Виктор', 'Сергей'],
-    props: ['Скамейка', 'Газета'],
-    sfx: ['Птицы'],
-    extras: '10-12 человек',
-    makeup: [],
-    transport: [],
-  },
-  {
-    id: 5,
-    location: 'Квартира Анны',
-    timeOfDay: 'Ночь',
-    characters: ['Анна'],
-    props: ['Телефон', 'Ноутбук', 'Чашка чая'],
-    sfx: [],
-    extras: 'нет',
-    makeup: [],
-    transport: [],
-  },
-  {
-    id: 6,
-    location: 'Улица города',
-    timeOfDay: 'День',
-    characters: ['Борис', 'Марина'],
-    props: ['Зонт', 'Сумка'],
-    sfx: [],
-    extras: '20-25 человек',
-    makeup: [],
-    transport: [],
-  },
-  {
-    id: 7,
-    location: 'Ресторан',
-    timeOfDay: 'Вечер',
-    characters: ['Анна', 'Борис', 'Виктор', 'Марина'],
-    props: ['Меню', 'Бокалы', 'Посуда'],
-    sfx: ['Фоновая музыка'],
-    extras: '8-10 человек',
-    makeup: [],
-    transport: [],
-  },
-  {
-    id: 8,
-    location: 'Офис редакции',
-    timeOfDay: 'Ночь',
-    characters: ['Анна', 'Сергей'],
-    props: ['Документы', 'Кофе', 'Принтер'],
-    sfx: [],
-    extras: '2-3 человека',
-    makeup: [],
-    transport: [],
-  },
-];
+// Let TypeScript know that mammoth.js is available globally from the script tag in index.html
+declare var mammoth: any;
 
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
 
-export const processScript = (file: File): Promise<SceneData[]> => {
-  console.log(`Simulating processing for file: ${file.name}`);
-  
-  const processingTime = 2000 + Math.random() * 1500;
+const generatePrompt = (options: AnalysisOptions): string => {
+    const basePrompt = `Analyze the provided film script. Your task is to act as a pre-production assistant and break down the script into individual scenes. For each scene, extract the following information and structure it as a JSON array of objects. Each object must represent one scene.
+    
+The properties for each scene object are:
+- id: The scene number (integer). Must be sequential.
+- location: The primary location of the scene (string).
+- timeOfDay: The time of day, e.g., "День", "Ночь", "Утро", "Вечер" (string).
+`;
+    
+    let prompt = basePrompt;
+    
+    const categoryPrompts: Record<string, string> = {
+        characters: '- characters: A list of all speaking characters in the scene (array of strings).\n',
+        extras: '- extras: A description of any background actors or extras needed, including approximate numbers e.g., "10-15 человек" (string).\n',
+        props: '- props: A list of all significant props mentioned or required for the scene (array of strings).\n',
+        sfx: '- sfx: A list of any sound effects or special visual effects described (array of strings).\n',
+        makeup: '- makeup: A list of special makeup or hair requirements (array of strings).\n',
+        stunts: '- stunts: A list of any stunts or special actions required (array of strings).\n',
+        transport: '- transport: A list of any vehicles or modes of transport involved (array of strings).\n',
+    };
 
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      console.log('Processing complete. Returning mock data.');
-      resolve(MOCK_DATA);
-    }, processingTime);
+    options.categories.forEach(cat => {
+        if (categoryPrompts[cat]) {
+            prompt += categoryPrompts[cat];
+        }
+    });
+    
+    prompt += `
+Ensure the output is a valid JSON array. If a category is not present in a scene, use an empty array [] for list types or an empty string "" for string types. For example: "props": []. Analyze the entire script from beginning to end. The response must only contain the JSON array, no other text or markdown formatting.
+    `;
+    
+    return prompt;
+};
+
+// Helper function to convert a File object to a base64-encoded generative part.
+const fileToGenerativePart = async (file: File) => {
+  const base64EncodedDataPromise = new Promise<string>((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+    reader.readAsDataURL(file);
   });
+  return {
+    inlineData: {
+      data: await base64EncodedDataPromise,
+      mimeType: file.type,
+    },
+  };
+};
+
+export const processScript = async (
+  file: File,
+  options: AnalysisOptions
+): Promise<SceneData[]> => {
+  console.log(`Starting script processing for ${file.name} with options:`, options);
+
+  try {
+    const prompt = generatePrompt(options);
+    let response: GenerateContentResponse;
+
+    // For DOCX files, extract text client-side to bypass potential MIME type issues.
+    // For PDFs, use the standard multimodal upload which is generally supported.
+    if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || file.name.endsWith('.docx')) {
+      console.log("DOCX file detected. Extracting text content on the client-side.");
+      if (typeof mammoth === 'undefined') {
+          throw new Error("Mammoth.js library is not loaded. Cannot process DOCX files.");
+      }
+      const arrayBuffer = await file.arrayBuffer();
+      const { value: scriptText } = await mammoth.extractRawText({ arrayBuffer });
+      console.log("Text extracted. Sending as a text-only prompt.");
+      
+      const fullPrompt = `${prompt}\n\nHere is the script text to analyze:\n\n${scriptText}`;
+
+      response = await ai.models.generateContent({
+        model: 'gemini-2.5-pro',
+        contents: [{ parts: [{ text: fullPrompt }] }],
+      });
+
+    } else {
+      // Assume PDF, use multimodal approach
+      console.log("PDF file detected. Using multimodal approach.");
+      const filePart = await fileToGenerativePart(file);
+      const textPart = { text: prompt };
+
+      console.log("Sending file and prompt to Gemini...");
+      response = await ai.models.generateContent({
+        model: 'gemini-2.5-pro',
+        contents: [{ parts: [filePart, textPart] }], 
+      });
+    }
+    
+    console.log("Received response from Gemini.");
+
+    let jsonString = response.text.trim();
+    if (jsonString.startsWith('```json')) {
+      jsonString = jsonString.slice(7, -3).trim();
+    } else if (jsonString.startsWith('```')) {
+      jsonString = jsonString.slice(3, -3).trim();
+    }
+    
+    const result = JSON.parse(jsonString);
+
+    const sanitizedResult = result.map((scene: any) => ({
+        id: scene.id ?? 0,
+        location: scene.location ?? '',
+        timeOfDay: scene.timeOfDay ?? '',
+        characters: scene.characters ?? [],
+        extras: scene.extras ?? '',
+        props: scene.props ?? [],
+        sfx: scene.sfx ?? [],
+        makeup: scene.makeup ?? [],
+        stunts: scene.stunts ?? [],
+        transport: scene.transport ?? [],
+    }));
+    return sanitizedResult as SceneData[];
+
+  } catch (e) {
+    console.error("Failed to parse Gemini response:", e);
+    throw new Error("Could not parse the breakdown from the script.");
+  }
 };

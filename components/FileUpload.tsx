@@ -1,41 +1,84 @@
 import React, { useState } from 'react';
-import type { SceneData } from '../types';
+import type { SceneData, AnalysisOptions, AnalysisCategory } from '../types';
 import ProcessingView from './ProcessingView';
 
 interface FileUploadProps {
-  onFileUpload: (file: File) => void;
+  onFileUpload: (file: File, options: AnalysisOptions) => void;
   isProcessing: boolean;
   fileName: string;
   processedData: SceneData[] | null;
   error: string | null;
 }
 
-const FileUploadIcon = () => (
-    <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4V12a4 4 0 014-4h12l4 4h12a4 4 0 014 4zm-4-4v4m0 0H24m12 0a4 4 0 00-4-4H16m0 0l-4-4m16 28v-4a4 4 0 00-4-4H16a4 4 0 00-4 4v4m16 0H16" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+const ArrowUpTrayIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12 mx-auto text-gray-400 dark:text-gray-500">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
     </svg>
 );
 
+
+const ALL_CATEGORIES: { id: AnalysisCategory; name: string }[] = [
+    { id: 'characters', name: 'Персонажи и массовка' },
+    { id: 'props', name: 'Реквизит' },
+    { id: 'sfx', name: 'Спецэффекты (SFX/VFX)' },
+    { id: 'makeup', name: 'Грим и прически' },
+    { id: 'stunts', name: 'Каскадеры' },
+    { id: 'transport', name: 'Транспорт' },
+];
+
 const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isProcessing, fileName, processedData, error }) => {
   const [isDragging, setIsDragging] = useState(false);
+  const [analysisOptions, setAnalysisOptions] = useState<AnalysisOptions>({
+    preset: 'advanced',
+    categories: ['characters', 'extras', 'props', 'sfx', 'transport', 'makeup']
+  });
 
   const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); };
   const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); };
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation(); };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      onFileUpload(e.dataTransfer.files[0]);
+  const handleFileAction = (file: File | null) => {
+    if (file) {
+      onFileUpload(file, analysisOptions);
     }
   };
 
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault(); e.stopPropagation(); setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) handleFileAction(e.dataTransfer.files[0]);
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      onFileUpload(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) handleFileAction(e.target.files[0]);
+    e.target.value = ''; // Reset input to allow re-uploading the same file
+  };
+  
+  const handlePresetChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const preset = e.target.value as AnalysisOptions['preset'];
+    let categories: AnalysisCategory[] = analysisOptions.categories; // Default to current for custom
+    switch(preset) {
+        case 'basic':
+            categories = ['characters', 'props'];
+            break;
+        case 'advanced':
+            categories = ['characters', 'extras', 'props', 'sfx', 'transport', 'makeup'];
+            break;
+        case 'full':
+            categories = ['characters', 'extras', 'props', 'sfx', 'makeup', 'stunts', 'transport'];
+            break;
     }
+    setAnalysisOptions({ preset, categories });
+  }
+
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const category = e.target.name as AnalysisCategory;
+      const isChecked = e.target.checked;
+      setAnalysisOptions(prev => {
+          const newCategories = isChecked
+              ? [...prev.categories, category]
+              : prev.categories.filter(c => c !== category);
+          return { preset: 'custom', categories: newCategories };
+      });
   };
 
   if (isProcessing) {
@@ -55,9 +98,9 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isProcessing, fil
           onDrop={handleDrop}
           className={`mt-4 border-2 border-dashed rounded-lg p-8 text-center transition-colors duration-300 ${isDragging ? 'border-primary bg-primary-light dark:border-dark-primary dark:bg-dark-primary-light' : 'border-secondary dark:border-dark-secondary'}`}
         >
-          <input type="file" id="file-upload" className="hidden" accept=".pdf,.docx" onChange={handleFileChange} />
+          <input type="file" id="file-upload" className="hidden" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={handleFileChange} />
           <label htmlFor="file-upload" className="cursor-pointer">
-            <FileUploadIcon/>
+            <ArrowUpTrayIcon/>
             <p className="mt-2 text-sm font-medium text-text-primary dark:text-dark-text-primary">
               <span className="text-primary dark:text-dark-primary">Перетащите файл сюда</span> или нажмите для выбора
             </p>
@@ -82,17 +125,23 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isProcessing, fil
         <div className="bg-surface dark:bg-dark-surface rounded-lg shadow-card p-6">
             <h3 className="text-lg font-semibold text-text-primary dark:text-dark-text-primary">Пресеты анализа</h3>
             <p className="text-sm text-text-secondary dark:text-dark-text-secondary mb-4">Выберите набор элементов для распознавания</p>
-            {/* This is a decorative dropdown for now */}
-            <select className="w-full p-2 border border-secondary dark:border-dark-secondary rounded-md bg-transparent dark:bg-dark-surface focus:ring-2 focus:ring-primary dark:focus:ring-dark-primary outline-none">
-                <option>Расширенный</option>
-                <option>Базовый</option>
-                <option>Полный</option>
+            <select value={analysisOptions.preset} onChange={handlePresetChange} className="w-full p-2 border border-secondary dark:border-dark-secondary rounded-md bg-transparent dark:bg-dark-surface focus:ring-2 focus:ring-primary dark:focus:ring-dark-primary outline-none">
+                <option value="basic">Базовый</option>
+                <option value="advanced">Расширенный</option>
+                <option value="full">Полный</option>
+                <option value="custom">Пользовательский</option>
             </select>
             <div className="space-y-3 mt-4">
-                {['Локации и время суток', 'Персонажи и массовка', 'Реквизит', 'Спецэффекты', 'Транспорт'].map(item => (
-                    <label key={item} className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" defaultChecked className="h-4 w-4 rounded text-primary focus:ring-primary dark:bg-dark-secondary dark:border-dark-secondary" />
-                        {item}
+                {ALL_CATEGORIES.map(item => (
+                    <label key={item.id} className="flex items-center gap-2 text-sm">
+                        <input 
+                            type="checkbox" 
+                            name={item.id}
+                            checked={analysisOptions.categories.includes(item.id)}
+                            onChange={handleCategoryChange}
+                            className="h-4 w-4 rounded text-primary focus:ring-primary dark:bg-dark-secondary dark:border-dark-secondary" 
+                        />
+                        {item.name}
                     </label>
                 ))}
             </div>
@@ -102,8 +151,8 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isProcessing, fil
              <p className="text-sm text-text-secondary dark:text-dark-text-secondary mb-4">Параметры обработки</p>
              <ul className="text-sm space-y-3">
                 <li className="flex justify-between"><span>Макс. размер документа</span> <span className="font-semibold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full text-xs">120 страниц</span></li>
-                <li className="flex justify-between"><span>Время обработки</span> <span className="font-semibold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full text-xs">до 5 минут</span></li>
-                <li className="flex justify-between"><span>Режим работы</span> <span className="font-semibold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full text-xs">Офлайн</span></li>
+                <li className="flex justify-between"><span>Время обработки</span> <span className="font-semibold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full text-xs">~ 2-5 минут</span></li>
+                <li className="flex justify-between"><span>Модель ИИ</span> <span className="font-semibold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full text-xs">Gemini 2.5 Pro</span></li>
                 <li className="flex justify-between"><span>Кодировки</span> <span className="font-semibold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full text-xs">UTF-8, CP1251</span></li>
              </ul>
         </div>

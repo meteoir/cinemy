@@ -19,7 +19,7 @@ const ProcessingView: React.FC<ProcessingViewProps> = ({ fileName }) => {
       <div className="w-full bg-secondary dark:bg-dark-secondary rounded-full h-1.5 mt-6">
         <div className="bg-primary dark:bg-dark-primary h-1.5 rounded-full animate-pulse" style={{ width: '75%' }}></div>
       </div>
-       <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-3">Это может занять до минуты.</p>
+       <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-3">Это может занять несколько минут. Не закрывайте вкладку.</p>
     </div>
   );
 };

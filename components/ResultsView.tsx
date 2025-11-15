@@ -1,109 +1,115 @@
 import React, { useState, useMemo } from 'react';
-import type { SceneData } from '../types';
+import type { SceneData, FormattedData } from '../types';
+import { formatDataForBreakdown } from '../types';
 
 interface ResultsViewProps {
   data: SceneData[];
 }
 
-const ALL_COLUMNS = [
-  { key: 'id', name: '№' },
-  { key: 'object', name: 'Локация' },
-  { key: 'mode', name: 'Время' },
-  { key: 'characters', name: 'Персонажи' },
-  { key: 'props', name: 'Реквизит' },
-  { key: 'pyrotechnics', name: 'Спецэффекты' },
-  { key: 'makeup', name: 'Грим/Прически' },
-  { key: 'stunts', name: 'Каскадеры' },
-  { key: 'transport', name: 'Транспорт' },
-  { key: 'extras_grouping', name: 'Массовка' },
+const TABLE_HEADERS = [
+  "Серия", "Сцена", "Режим", "Инт/нат", "Объект", "Подобъект", "Синопсис",
+  "Персонажи", "Массовка / Групповка", "Грим / Костюм",
+  "Реквизит / Животное / Игровые фото", "Игровой транспорт", "Декорация",
+  "Спец. оборудование / Администрация", "Трюк / Пиротехник"
 ];
-
-const LocationIcon = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4 mr-1.5 text-text-secondary dark:text-dark-text-secondary flex-shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>;
-const TimeIcon = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4 mr-1.5 text-text-secondary dark:text-dark-text-secondary flex-shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>;
-
-const DataTag: React.FC<{ children: React.ReactNode, type?: 'default' | 'special' }> = ({ children, type = 'default' }) => {
-    const baseClasses = "px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap";
-    const typeClasses = type === 'special' 
-        ? "bg-tag-bg text-tag-text dark:bg-dark-tag-bg dark:text-dark-tag-text" 
-        : "bg-gray-100 dark:bg-gray-700 text-text-secondary dark:text-dark-text-secondary";
-    return <span className={`${baseClasses} ${typeClasses}`}>{children}</span>;
-}
 
 const ResultsView: React.FC<ResultsViewProps> = ({ data }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredData = useMemo(() => {
-    if (!searchTerm) return data;
-    const lowercasedTerm = searchTerm.toLowerCase();
-    return data.filter(row => 
-      Object.values(row).some(value => 
-        Array.isArray(value) 
-          ? value.join(', ').toLowerCase().includes(lowercasedTerm)
-          : String(value).toLowerCase().includes(lowercasedTerm)
-      )
-    );
-  }, [data, searchTerm]);
-  
-  const renderCellContent = (row: SceneData, colKey: string) => {
-    const value = row[colKey as keyof SceneData];
-    if (Array.isArray(value)) {
-        if (value.length === 0) return <span className="text-text-secondary dark:text-dark-text-secondary">—</span>;
-        return <div className="flex flex-wrap gap-1.5">{value.map((item, index) => <DataTag key={`${item}-${index}`} type={colKey === 'pyrotechnics' || colKey === 'stunts' ? 'special' : 'default'}>{item}</DataTag>)}</div>;
-    }
-    if (colKey === 'object' || colKey === 'mode') {
-        return <div className="flex items-center">{colKey === 'object' ? <LocationIcon/> : <TimeIcon/>}{String(value)}</div>
-    }
-    if (value === '' || value === null || value === undefined) return <span className="text-text-secondary dark:text-dark-text-secondary">—</span>;
+  const formattedData = useMemo(() => formatDataForBreakdown(data), [data]);
 
-    return String(value);
-  }
+  const filteredFormattedData = useMemo(() => {
+    if (!searchTerm) return formattedData;
+    const lowercasedTerm = searchTerm.toLowerCase();
+
+    return formattedData.map(group => {
+      if (group.type === 'off-day') {
+        return group;
+      }
+      const filteredScenes = group.scenes.filter(scene =>
+        Object.values(scene).some(value =>
+          String(value).toLowerCase().includes(lowercasedTerm)
+        )
+      );
+      return { ...group, scenes: filteredScenes };
+    }).filter(group => group.type === 'off-day' || (group.type === 'day' && group.scenes.length > 0));
+
+  }, [formattedData, searchTerm]);
+
+  const renderSceneRow = (scene: SceneData) => (
+    <tr key={scene.id} className="bg-surface dark:bg-dark-surface hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+      <td className="px-2 py-3 align-top text-sm">{scene.series}</td>
+      <td className="px-2 py-3 align-top text-sm font-bold">{scene.id}</td>
+      <td className="px-2 py-3 align-top text-sm">{scene.mode}</td>
+      <td className="px-2 py-3 align-top text-sm">{scene.int_nat}</td>
+      <td className="px-2 py-3 align-top text-sm">{scene.object}</td>
+      <td className="px-2 py-3 align-top text-sm">{scene.sub_object}</td>
+      <td className="px-2 py-3 align-top text-sm" style={{minWidth: '250px'}}>{scene.synopsis}</td>
+      <td className="px-2 py-3 align-top text-sm">{scene.characters?.join(', ')}</td>
+      <td className="px-2 py-3 align-top text-sm">{scene.extras_grouping}</td>
+      <td className="px-2 py-3 align-top text-sm">{[scene.makeup, scene.costume].filter(Boolean).join('\n')}</td>
+      <td className="px-2 py-3 align-top text-sm">{[scene.props, scene.animals, scene.photos].filter(Boolean).join('\n')}</td>
+      <td className="px-2 py-3 align-top text-sm">{scene.transport}</td>
+      <td className="px-2 py-3 align-top text-sm">{scene.set_decoration}</td>
+      <td className="px-2 py-3 align-top text-sm">{[scene.special_equipment, scene.administration].filter(Boolean).join('\n')}</td>
+      <td className="px-2 py-3 align-top text-sm">{[scene.stunts, scene.pyrotechnics].filter(Boolean).join('\n')}</td>
+    </tr>
+  );
 
   return (
-    <div className="w-full bg-surface dark:bg-dark-surface rounded-lg shadow-card p-6">
+    <div className="w-full bg-surface dark:bg-dark-surface rounded-lg shadow-card p-4 md:p-6">
       <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
         <div>
           <h2 className="text-xl font-semibold text-text-primary dark:text-dark-text-primary">Таблица сцен</h2>
-          <p className="text-sm text-text-secondary dark:text-dark-text-secondary">Результаты анализа сценария</p>
+          <p className="text-sm text-text-secondary dark:text-dark-text-secondary">Результаты анализа сценария в формате КПП</p>
         </div>
-        <input 
-            type="text" 
-            placeholder="Поиск по таблице..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="w-full md:w-64 px-3 py-1.5 text-sm bg-transparent border border-secondary dark:border-dark-secondary rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-dark-primary"
-          />
+        <input
+          type="text"
+          placeholder="Поиск по таблице..."
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          className="w-full md:w-64 px-3 py-1.5 text-sm bg-transparent border border-secondary dark:border-dark-secondary rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-dark-primary"
+        />
       </div>
-      
+
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-secondary dark:divide-dark-secondary">
-          <thead className="bg-gray-50 dark:bg-white/5">
+        <table className="min-w-full border-collapse text-text-primary dark:text-dark-text-primary">
+          <thead className="sticky top-12 bg-surface dark:bg-dark-surface">
             <tr>
-              {ALL_COLUMNS.map(col => (
-                <th key={col.key} className="px-4 py-3 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">
-                  {col.name}
+              {TABLE_HEADERS.map(header => (
+                <th key={header} className="px-2 py-3 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider border-b-2 border-secondary dark:border-dark-secondary">
+                  {header}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-secondary dark:divide-dark-secondary">
-            {filteredData.map((row) => (
-              <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                 {ALL_COLUMNS.map(col => (
-                  <td key={col.key} className="px-4 py-3 align-top text-sm text-text-primary dark:text-dark-text-primary" style={{ minWidth: ['props', 'characters', 'transport'].includes(col.key) ? '200px' : 'auto' }}>
-                    {renderCellContent(row, col.key)}
-                  </td>
-                ))}
-              </tr>
-            ))}
-             {filteredData.length === 0 && (
+          {filteredFormattedData.map((group, index) => (
+            <tbody key={`${group.date}-${index}`}>
+              {group.type === 'off-day' ? (
                 <tr>
-                    <td colSpan={ALL_COLUMNS.length} className="text-center py-10 text-text-secondary dark:text-dark-text-secondary">
-                        Ничего не найдено по вашему запросу
-                    </td>
+                  <td colSpan={TABLE_HEADERS.length} className="p-2 bg-gray-200 dark:bg-gray-700 font-semibold text-center text-text-secondary dark:text-dark-text-secondary">
+                    {group.date} | {group.title}
+                  </td>
                 </tr>
-             )}
-          </tbody>
+              ) : (
+                <>
+                  <tr className="bg-[#c8bfe7] dark:bg-[#4a4266]">
+                      <td colSpan={3} className="px-2 py-1 font-bold">{group.date} {group.dayOfWeek} СМЕНА №{group.shiftNumber}</td>
+                      <td colSpan={4} className="px-2 py-1 text-center font-bold">{group.shiftType}</td>
+                      <td colSpan={4} className="px-2 py-1 text-center font-bold bg-yellow-300/80 text-black">СМЕНА {group.shiftTime}</td>
+                      <td colSpan={4} className="px-2 py-1 text-xs">{group.comments.join('; ')}</td>
+                  </tr>
+                  {group.scenes.map(renderSceneRow)}
+                </>
+              )}
+            </tbody>
+          ))}
         </table>
+        {filteredFormattedData.length === 0 && (
+          <div className="text-center py-10 text-text-secondary dark:text-dark-text-secondary">
+            Ничего не найдено по вашему запросу.
+          </div>
+        )}
       </div>
     </div>
   );

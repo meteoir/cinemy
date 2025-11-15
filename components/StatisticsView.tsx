@@ -62,21 +62,23 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ data }) => {
         const dayScenes = data.filter(s => s.mode.toLowerCase() === 'день' || s.mode.toLowerCase() === 'утро').length;
         const nightScenes = data.filter(s => s.mode.toLowerCase() === 'вечер' || s.mode.toLowerCase() === 'ночь').length;
 
-        // FIX: Explicitly type the accumulator in Array.reduce to ensure correct type inference. This resolves the "Untyped function calls may not accept type arguments" error.
-        const locationCounts = data.reduce((acc: Record<string, number>, scene) => {
+        // FIX: Provide a generic type argument to `reduce` to correctly type the accumulator.
+        // The initial value `{}` is too generic, causing TypeScript to infer the result as `{}`,
+        // which leads to errors in `Object.entries` and `.sort`.
+        const locationCounts = data.reduce<Record<string, number>>((acc, scene) => {
             acc[scene.object] = (acc[scene.object] || 0) + 1;
             return acc;
         }, {});
 
-        // FIX: Explicitly type the accumulator in Array.reduce to ensure correct type inference. This resolves the "Untyped function calls may not accept type arguments" error.
-        const characterCounts = data.reduce((acc: Record<string, number>, scene) => {
+        // FIX: Provide a generic type argument to `reduce` to correctly type the accumulator.
+        const characterCounts = data.reduce<Record<string, number>>((acc, scene) => {
             scene.characters.forEach(char => {
                 acc[char] = (acc[char] || 0) + 1;
             });
             return acc;
         }, {});
 
-        // FIX: With `locationCounts` and `characterCounts` correctly typed, the sort function now correctly infers `a` and `b` as numbers, fixing the arithmetic operation errors.
+        // With `locationCounts` and `characterCounts` correctly typed, the sort function now correctly infers `a` and `b` as numbers.
         const sortedLocations = Object.entries(locationCounts).sort(([,a], [,b]) => b - a).map(([label, value]) => ({ label, value }));
         const sortedCharacters = Object.entries(characterCounts).sort(([,a], [,b]) => b - a).map(([label, value]) => ({ label, value }));
         

@@ -1,65 +1,102 @@
-
 import type { SceneData } from '../types';
 
-// This is a MOCK service. In a real application, this function would:
-// 1. Send the file to a backend server.
-// 2. The server would parse the PDF/DOCX to extract raw text.
-// 3. The text would be segmented into scenes.
-// 4. Each scene's text would be passed to a local LLM for analysis.
-// 5. The structured JSON results from the LLM would be aggregated and returned.
-
+// This is a MOCK service that returns data consistent with the screenshots.
 const MOCK_DATA: SceneData[] = [
   {
     id: 1,
-    location: 'ИНТ. КВАРТИРА ИВАНА',
-    timeOfDay: 'Ночь',
-    characters: ['Иван', 'Мария'],
-    extras: [],
-    props: ['Ноутбук', 'Стакан виски', 'Пистолет'],
-    sfx: ['Звук сирен вдалеке'],
+    location: 'Офис редакции',
+    timeOfDay: 'День',
+    characters: ['Анна', 'Борис', 'Сергей'],
+    props: ['Ноутбук', 'Кофе', 'Документы'],
+    sfx: [],
+    extras: '5-7 человек',
     makeup: [],
     transport: [],
   },
   {
     id: 2,
-    location: 'ЭКСТ. УЛИЦА',
-    timeOfDay: 'Ночь',
-    characters: ['Иван'],
-    extras: ['Прохожие'],
-    props: ['Мобильный телефон'],
-    sfx: ['Шум города', 'Дождь'],
-    makeup: ['Мокрая одежда'],
-    transport: ['Старый автомобиль'],
+    location: 'Улица города',
+    timeOfDay: 'Вечер',
+    characters: ['Анна', 'Виктор'],
+    props: ['Автомобиль', 'Телефон'],
+    sfx: ['Дождь'],
+    extras: '15-20 человек',
+    makeup: [],
+    transport: [],
   },
   {
     id: 3,
-    location: 'ИНТ. ПОЛИЦЕЙСКИЙ УЧАСТОК',
-    timeOfDay: 'Ночь',
-    characters: ['Иван', 'Детектив Петров'],
-    extras: ['Полицейские'],
-    props: ['Наручники', 'Папка с делом'],
+    location: 'Кафе',
+    timeOfDay: 'День',
+    characters: ['Анна', 'Марина'],
+    props: ['Меню', 'Посуда'],
     sfx: [],
-    makeup: ['Синяк под глазом у Ивана'],
+    extras: '3-5 человек',
+    makeup: [],
     transport: [],
   },
-    {
+  {
     id: 4,
-    location: 'ЭКСТ. ПРИСТАНЬ',
-    timeOfDay: 'Утро',
-    characters: ['Мария', 'Таинственный Незнакомец'],
-    extras: ['Чайки'],
-    props: ['Конверт', 'Бинокль'],
-    sfx: ['Крики чаек', 'Шум волн'],
+    location: 'Парк',
+    timeOfDay: 'День',
+    characters: ['Виктор', 'Сергей'],
+    props: ['Скамейка', 'Газета'],
+    sfx: ['Птицы'],
+    extras: '10-12 человек',
     makeup: [],
-    transport: ['Катер'],
+    transport: [],
+  },
+  {
+    id: 5,
+    location: 'Квартира Анны',
+    timeOfDay: 'Ночь',
+    characters: ['Анна'],
+    props: ['Телефон', 'Ноутбук', 'Чашка чая'],
+    sfx: [],
+    extras: 'нет',
+    makeup: [],
+    transport: [],
+  },
+  {
+    id: 6,
+    location: 'Улица города',
+    timeOfDay: 'День',
+    characters: ['Борис', 'Марина'],
+    props: ['Зонт', 'Сумка'],
+    sfx: [],
+    extras: '20-25 человек',
+    makeup: [],
+    transport: [],
+  },
+  {
+    id: 7,
+    location: 'Ресторан',
+    timeOfDay: 'Вечер',
+    characters: ['Анна', 'Борис', 'Виктор', 'Марина'],
+    props: ['Меню', 'Бокалы', 'Посуда'],
+    sfx: ['Фоновая музыка'],
+    extras: '8-10 человек',
+    makeup: [],
+    transport: [],
+  },
+  {
+    id: 8,
+    location: 'Офис редакции',
+    timeOfDay: 'Ночь',
+    characters: ['Анна', 'Сергей'],
+    props: ['Документы', 'Кофе', 'Принтер'],
+    sfx: [],
+    extras: '2-3 человека',
+    makeup: [],
+    transport: [],
   },
 ];
+
 
 export const processScript = (file: File): Promise<SceneData[]> => {
   console.log(`Simulating processing for file: ${file.name}`);
   
-  // Simulate network delay and AI processing time (e.g., 3-5 seconds)
-  const processingTime = 3000 + Math.random() * 2000;
+  const processingTime = 2000 + Math.random() * 1500;
 
   return new Promise((resolve) => {
     setTimeout(() => {

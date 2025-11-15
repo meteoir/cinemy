@@ -1,10 +1,9 @@
-
 export interface SceneData {
   id: number;
   location: string;
-  timeOfDay: 'День' | 'Ночь' | 'Вечер' | 'Утро' | 'Не указано';
+  timeOfDay: string;
   characters: string[];
-  extras: string[];
+  extras: string;
   props: string[];
   sfx: string[];
   makeup: string[];

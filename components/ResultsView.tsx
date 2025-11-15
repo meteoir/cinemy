@@ -1,34 +1,32 @@
-
 import React, { useState, useMemo } from 'react';
 import type { SceneData } from '../types';
 
 interface ResultsViewProps {
   data: SceneData[];
-  onReset: () => void;
-  fileName: string;
 }
 
 const ALL_COLUMNS = [
-  { key: 'id', name: 'Сцена №' },
+  { key: 'id', name: '№' },
   { key: 'location', name: 'Локация' },
   { key: 'timeOfDay', name: 'Время' },
   { key: 'characters', name: 'Персонажи' },
-  { key: 'extras', name: 'Массовка' },
   { key: 'props', name: 'Реквизит' },
-  { key: 'sfx', name: 'SFX' },
-  { key: 'makeup', name: 'Грим' },
-  { key: 'transport', name: 'Транспорт' },
+  { key: 'sfx', name: 'Спецэффекты' },
+  { key: 'extras', name: 'Массовка' },
 ];
 
-const PRESETS = {
-  basic: ['id', 'location', 'timeOfDay', 'characters'],
-  advanced: ['id', 'location', 'timeOfDay', 'characters', 'props', 'extras'],
-  full: ALL_COLUMNS.map(c => c.key),
-};
+const LocationIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3 mr-1.5 text-text-secondary dark:text-dark-text-secondary"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>;
+const TimeIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3 mr-1.5 text-text-secondary dark:text-dark-text-secondary"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>;
 
+const DataTag: React.FC<{ children: React.ReactNode, type?: 'default' | 'special' }> = ({ children, type = 'default' }) => {
+    const baseClasses = "px-2.5 py-1 text-xs font-semibold rounded-full";
+    const typeClasses = type === 'special' 
+        ? "bg-tag-bg text-tag-text dark:bg-dark-tag-bg dark:text-dark-tag-text" 
+        : "bg-gray-100 dark:bg-gray-700 text-text-secondary dark:text-dark-text-secondary";
+    return <span className={`${baseClasses} ${typeClasses}`}>{children}</span>;
+}
 
-const ResultsView: React.FC<ResultsViewProps> = ({ data, onReset, fileName }) => {
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(PRESETS.full);
+const ResultsView: React.FC<ResultsViewProps> = ({ data }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredData = useMemo(() => {
@@ -43,85 +41,64 @@ const ResultsView: React.FC<ResultsViewProps> = ({ data, onReset, fileName }) =>
     );
   }, [data, searchTerm]);
   
-  const handlePresetChange = (preset: 'basic' | 'advanced' | 'full') => {
-    setVisibleColumns(PRESETS[preset]);
-  };
+  const renderCellContent = (row: SceneData, colKey: string) => {
+    const value = row[colKey as keyof SceneData];
+    if (Array.isArray(value)) {
+        if (value.length === 0) return <span className="text-text-secondary dark:text-dark-text-secondary">—</span>;
+        return <div className="flex flex-wrap gap-1.5">{value.map(item => <DataTag key={item} type={colKey === 'sfx' ? 'special' : 'default'}>{item}</DataTag>)}</div>;
+    }
+    if (colKey === 'location' || colKey === 'timeOfDay') {
+        return <div className="flex items-center">{colKey === 'location' ? <LocationIcon/> : <TimeIcon/>}{String(value)}</div>
+    }
+    if (value === '' || value === null) return <span className="text-text-secondary dark:text-dark-text-secondary">—</span>;
 
-  const exportToCSV = () => {
-    const headers = ALL_COLUMNS.filter(c => visibleColumns.includes(c.key)).map(c => c.name).join(',');
-    const rows = filteredData.map(row => {
-        return ALL_COLUMNS.filter(c => visibleColumns.includes(c.key)).map(col => {
-            const value = row[col.key as keyof SceneData];
-            if (Array.isArray(value)) {
-                return `"${value.join(', ')}"`;
-            }
-            return `"${value}"`;
-        }).join(',');
-    }).join('\\n');
-
-    const csvContent = `data:text/csv;charset=utf-8,${headers}\\n${rows}`;
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `breakdown_${fileName.split('.')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+    return String(value);
+  }
 
   return (
-    <div className="w-full bg-brand-surface rounded-lg p-6 shadow-lg">
+    <div className="w-full bg-surface dark:bg-dark-surface rounded-lg shadow-card p-6">
       <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-brand-text-light">Результаты анализа</h2>
-          <p className="text-sm text-brand-text-dark">{fileName}</p>
+          <h2 className="text-xl font-semibold text-text-primary dark:text-dark-text-primary">Таблица сцен</h2>
+          <p className="text-sm text-text-secondary dark:text-dark-text-secondary">Результаты анализа сценария</p>
         </div>
-        <div className="flex items-center gap-2">
-            <button onClick={onReset} className="px-4 py-2 bg-brand-secondary text-white rounded-md hover:bg-gray-600 transition-colors">Новый сценарий</button>
-            <button onClick={exportToCSV} className="px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-blue-600 transition-colors">Экспорт в CSV</button>
-        </div>
-      </div>
-      
-      <div className="flex flex-wrap items-center justify-between mb-4 gap-4 p-4 bg-gray-900 rounded-md">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold">Пресеты:</span>
-            <button onClick={() => handlePresetChange('basic')} className="px-3 py-1 text-sm bg-brand-secondary rounded-full hover:bg-gray-600">Базовый</button>
-            <button onClick={() => handlePresetChange('advanced')} className="px-3 py-1 text-sm bg-brand-secondary rounded-full hover:bg-gray-600">Расширенный</button>
-            <button onClick={() => handlePresetChange('full')} className="px-3 py-1 text-sm bg-brand-primary rounded-full hover:bg-blue-600">Полный</button>
-          </div>
-          <input 
+        <input 
             type="text" 
-            placeholder="Поиск по таблице..."
+            placeholder="Поиск по локациям, персонажам..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="px-4 py-2 bg-brand-background border border-brand-secondary rounded-md focus:outline-none focus:ring-2 focus:ring-brand-primary"
+            className="w-full md:w-64 px-3 py-1.5 text-sm bg-transparent border border-secondary dark:border-dark-secondary rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-dark-primary"
           />
       </div>
-
+      
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-brand-secondary">
-          <thead className="bg-gray-800">
+        <table className="min-w-full divide-y divide-secondary dark:divide-dark-secondary">
+          <thead className="bg-gray-50 dark:bg-white/5">
             <tr>
-              {ALL_COLUMNS.filter(c => visibleColumns.includes(c.key)).map(col => (
-                <th key={col.key} className="px-6 py-3 text-left text-xs font-medium text-brand-text-dark uppercase tracking-wider">
+              {ALL_COLUMNS.map(col => (
+                <th key={col.key} className="px-4 py-3 text-left text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wider">
                   {col.name}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="bg-brand-surface divide-y divide-brand-secondary">
+          <tbody className="divide-y divide-secondary dark:divide-dark-secondary">
             {filteredData.map((row) => (
-              <tr key={row.id} className="hover:bg-gray-800 transition-colors">
-                {ALL_COLUMNS.filter(c => visibleColumns.includes(c.key)).map(col => (
-                  <td key={col.key} className="px-6 py-4 whitespace-nowrap text-sm">
-                    {Array.isArray(row[col.key as keyof SceneData]) 
-                      ? (row[col.key as keyof SceneData] as string[]).join(', ') 
-                      : String(row[col.key as keyof SceneData])
-                    }
+              <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                 {ALL_COLUMNS.map(col => (
+                  <td key={col.key} className="px-4 py-3 align-top text-sm text-text-primary dark:text-dark-text-primary" style={{ minWidth: col.key === 'props' || col.key === 'characters' ? '200px' : 'auto' }}>
+                    {renderCellContent(row, col.key)}
                   </td>
                 ))}
               </tr>
             ))}
+             {filteredData.length === 0 && (
+                <tr>
+                    <td colSpan={ALL_COLUMNS.length} className="text-center py-10 text-text-secondary dark:text-dark-text-secondary">
+                        Ничего не найдено
+                    </td>
+                </tr>
+             )}
           </tbody>
         </table>
       </div>

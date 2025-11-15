@@ -1,23 +1,54 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Scenarist AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
+        darkMode: 'class',
         theme: {
           extend: {
-            colors: {
-              'brand-background': '#1a1a1a',
-              'brand-surface': '#2a2a2a',
-              'brand-primary': '#00aaff',
-              'brand-secondary': '#4b5563',
-              'brand-text-light': '#f3f4f6',
-              'brand-text-dark': '#9ca3af',
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
             },
+            colors: {
+              // Light theme
+              background: '#F3F6F9',
+              surface: '#FFFFFF',
+              primary: '#2684FF',
+              'primary-hover': '#0069D9',
+              'primary-light': '#E9F2FF',
+              secondary: '#E5E7EB',
+              'text-primary': '#1F2937',
+              'text-secondary': '#6B7280',
+              'text-on-primary': '#FFFFFF',
+              success: '#17A53C',
+              'success-bg': '#E8F6EA',
+              'tag-bg': '#E9F2FF',
+              'tag-text': '#2684FF',
+              
+              // Dark theme
+              'dark-background': '#111827',
+              'dark-surface': '#1F2937',
+              'dark-primary': '#389BFF',
+              'dark-primary-hover': '#57ABFF',
+              'dark-primary-light': 'rgba(56, 155, 255, 0.1)',
+              'dark-secondary': '#374151',
+              'dark-text-primary': '#F9FAFB',
+              'dark-text-secondary': '#9CA3AF',
+              'dark-success': '#20C997',
+              'dark-success-bg': 'rgba(32, 201, 151, 0.1)',
+              'dark-tag-bg': 'rgba(56, 155, 255, 0.1)',
+              'dark-tag-text': '#389BFF',
+            },
+            boxShadow: {
+              'card': '0 4px 12px rgba(0,0,0,0.05)',
+            }
           },
         },
       }
@@ -32,7 +63,7 @@
 }
 </script>
 </head>
-  <body class="bg-brand-background text-brand-text-light">
+  <body class="bg-background dark:bg-dark-background">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

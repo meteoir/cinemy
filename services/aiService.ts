@@ -1,12 +1,12 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-import type { SceneData } from '../types';
+import type { SceneData, AnalysisOptions, AnalysisCategory } from '../types';
 
 // Let TypeScript know that mammoth.js is available globally from the script tag in index.html
 declare var mammoth: any;
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
 
-const FULL_ANALYSIS_PROMPT = `You are a professional film production assistant. Your task is to analyze the provided film script and create a detailed breakdown sheet. Structure your output as a valid JSON array of objects, where each object represents a single scene. Each object must have the following properties:
+const PROMPT_BASE = `You are a professional film production assistant. Your task is to analyze the provided film script and create a detailed breakdown sheet. Structure your output as a valid JSON array of objects, where each object represents a single scene. Each object must have the following mandatory properties:
 
 - "id": Scene number, as a string (e.g., "1", "4-2", "6-A").
 - "series": Series number, if applicable (string).
@@ -15,22 +15,40 @@ const FULL_ANALYSIS_PROMPT = `You are a professional film production assistant. 
 - "object": The main location ('Объект').
 - "sub_object": The sub-location or specific area within the main location ('Подобъект').
 - "synopsis": A brief one-sentence summary of the scene's action.
-- "characters": An array of all speaking characters.
-- "extras_grouping": A description of any extras, background actors, or crowd scenes, including numbers if specified (e.g., "Массовка: Прохожие (10)").
-- "makeup": Description of any special makeup or hair requirements ('Грим').
-- "costume": Description of costumes ('Костюм').
-- "props": Description of all props, including items characters interact with ('Реквизит').
-- "animals": Any animals mentioned ('Животное').
-- "photos": Any on-screen graphics, photos, or digital screen content ('Игровые фото').
-- "transport": All vehicles or modes of transport involved ('Игровой транспорт').
 - "set_decoration": Details about the set, furniture, and environment ('Декорация').
-- "special_equipment": Any special camera, lighting, or other technical equipment needed ('Спец. оборудование').
-- "administration": Administrative notes, permissions, or special arrangements ('Администрация').
-- "stunts": Any physical stunts described ('Трюк').
-- "pyrotechnics": Any pyrotechnics, fire, or special effects like smoke ('Пиротехник').
+- "administration": Administrative notes, permissions, or special arrangements ('Администрация').`;
 
-If a property is not mentioned in a scene, use an empty string "" or an empty array [] for the 'characters' property. The entire response must consist ONLY of the JSON array, with no surrounding text, comments, or markdown formatting.`;
+const PROMPT_CATEGORIES: Record<AnalysisCategory, string> = {
+    characters: '- "characters": An array of all speaking characters.',
+    extras: '- "extras_grouping": A description of any extras, background actors, or crowd scenes, including numbers if specified (e.g., "Массовка: Прохожие (10)").',
+    makeup: '- "makeup": Description of any special makeup or hair requirements (\'Грим\').\n- "costume": Description of costumes (\'Костюм\').',
+    props: '- "props": Description of all props, including items characters interact with (\'Реквизит\').\n- "animals": Any animals mentioned (\'Животное\').\n- "photos": Any on-screen graphics, photos, or digital screen content (\'Игровые фото\').',
+    transport: '- "transport": All vehicles or modes of transport involved (\'Игровой транспорт\').',
+    stunts: '- "stunts": Any physical stunts described (\'Трюк\').',
+    sfx: '- "pyrotechnics": Any pyrotechnics, fire, or special effects like smoke (\'Пиротехник\').\n- "special_equipment": Any special camera, lighting, or other technical equipment needed (\'Спец. оборудование\').'
+};
 
+const PROMPT_FOOTER = `\n\nFor any optional properties that are not mentioned in a scene, use an empty string "" or an empty array [] for array properties. The entire response must consist ONLY of the JSON array, with no surrounding text, comments, or markdown formatting.`;
+
+
+const generatePrompt = (options: AnalysisOptions): string => {
+    let prompt = PROMPT_BASE;
+    
+    const includedCategories = new Set(options.categories);
+    
+    if (includedCategories.size > 0) {
+        prompt += '\n\nAdditionally, include the following optional properties based on your analysis:';
+        
+        for (const category of Object.keys(PROMPT_CATEGORIES) as AnalysisCategory[]) {
+            if (includedCategories.has(category)) {
+                prompt += '\n' + PROMPT_CATEGORIES[category];
+            }
+        }
+    }
+    
+    prompt += PROMPT_FOOTER;
+    return prompt;
+};
 
 // Helper function to convert a File object to a base64-encoded generative part.
 const fileToGenerativePart = async (file: File) => {
@@ -48,12 +66,13 @@ const fileToGenerativePart = async (file: File) => {
 };
 
 export const processScript = async (
-  file: File
+  file: File,
+  options: AnalysisOptions
 ): Promise<SceneData[]> => {
-  console.log(`Starting full script processing for ${file.name}`);
+  console.log(`Starting script processing for ${file.name} with options:`, options.categories);
 
   try {
-    const prompt = FULL_ANALYSIS_PROMPT;
+    const prompt = generatePrompt(options);
     let response: GenerateContentResponse;
 
     if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || file.name.endsWith('.docx')) {

@@ -3,7 +3,7 @@ import type { SceneData, AnalysisOptions, AnalysisCategory } from '../types';
 import ProcessingView from './ProcessingView';
 
 interface FileUploadProps {
-  onFileUpload: (file: File) => void;
+  onFileUpload: (file: File, options: AnalysisOptions) => void;
   isProcessing: boolean;
   fileName: string;
   processedData: SceneData[] | null;
@@ -39,7 +39,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isProcessing, fil
 
   const handleFileAction = (file: File | null) => {
     if (file) {
-      onFileUpload(file);
+      onFileUpload(file, analysisOptions);
     }
   };
 
@@ -58,7 +58,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isProcessing, fil
     let categories: AnalysisCategory[] = analysisOptions.categories; // Default to current for custom
     switch(preset) {
         case 'basic':
-            categories = ['characters', 'props'];
+            categories = ['characters', 'props', 'extras'];
             break;
         case 'advanced':
             categories = ['characters', 'extras', 'props', 'sfx', 'transport', 'makeup'];
@@ -74,10 +74,15 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isProcessing, fil
       const category = e.target.name as AnalysisCategory;
       const isChecked = e.target.checked;
       setAnalysisOptions(prev => {
-          const newCategories = isChecked
-              ? [...prev.categories, category]
-              : prev.categories.filter(c => c !== category);
-          return { preset: 'custom', categories: newCategories };
+          const newCategories = new Set(prev.categories);
+          if (isChecked) {
+              newCategories.add(category);
+              if (category === 'characters') newCategories.add('extras');
+          } else {
+              newCategories.delete(category);
+              if (category === 'characters') newCategories.delete('extras');
+          }
+          return { preset: 'custom', categories: Array.from(newCategories) };
       });
   };
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { SceneData } from './types';
+import type { SceneData, AnalysisOptions } from './types';
 import { processScript } from './services/aiService';
 
 import FileUpload from './components/FileUpload';
@@ -47,7 +47,7 @@ const App: React.FC = () => {
 
   const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
 
-  const handleFileUpload = async (file: File) => {
+  const handleFileUpload = async (file: File, options: AnalysisOptions) => {
     setIsProcessing(true);
     setFileName(file.name);
     setError(null);
@@ -55,7 +55,7 @@ const App: React.FC = () => {
     setActiveTab('table'); // Switch view immediately to processing view
 
     try {
-      const data = await processScript(file);
+      const data = await processScript(file, options);
       setProcessedData(data);
       setActiveTab('table');
     } catch (err) {

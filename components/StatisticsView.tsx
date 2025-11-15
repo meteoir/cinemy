@@ -57,29 +57,26 @@ const BarChart: React.FC<BarChartProps> = ({ title, data }) => {
 
 const StatisticsView: React.FC<StatisticsViewProps> = ({ data }) => {
     const stats = useMemo(() => {
-        // FIX: Property 'location' does not exist on type 'SceneData'. Use 'object' instead.
         const locations = new Set(data.map(s => s.object));
         const characters = new Set(data.flatMap(s => s.characters));
-        // FIX: Property 'timeOfDay' does not exist on type 'SceneData'. Use 'mode' instead.
         const dayScenes = data.filter(s => s.mode.toLowerCase() === 'день' || s.mode.toLowerCase() === 'утро').length;
-        // FIX: Property 'timeOfDay' does not exist on type 'SceneData'. Use 'mode' instead.
         const nightScenes = data.filter(s => s.mode.toLowerCase() === 'вечер' || s.mode.toLowerCase() === 'ночь').length;
 
-        // FIX: Explicitly type the accumulator for the reduce function to ensure correct type inference.
-        const locationCounts = data.reduce<Record<string, number>>((acc, scene) => {
-            // FIX: Property 'location' does not exist on type 'SceneData'. Use 'object' instead.
+        // FIX: Explicitly type the accumulator in Array.reduce to ensure correct type inference. This resolves the "Untyped function calls may not accept type arguments" error.
+        const locationCounts = data.reduce((acc: Record<string, number>, scene) => {
             acc[scene.object] = (acc[scene.object] || 0) + 1;
             return acc;
         }, {});
 
-        // FIX: Explicitly type the accumulator for the reduce function to ensure correct type inference.
-        const characterCounts = data.reduce<Record<string, number>>((acc, scene) => {
+        // FIX: Explicitly type the accumulator in Array.reduce to ensure correct type inference. This resolves the "Untyped function calls may not accept type arguments" error.
+        const characterCounts = data.reduce((acc: Record<string, number>, scene) => {
             scene.characters.forEach(char => {
                 acc[char] = (acc[char] || 0) + 1;
             });
             return acc;
         }, {});
 
+        // FIX: With `locationCounts` and `characterCounts` correctly typed, the sort function now correctly infers `a` and `b` as numbers, fixing the arithmetic operation errors.
         const sortedLocations = Object.entries(locationCounts).sort(([,a], [,b]) => b - a).map(([label, value]) => ({ label, value }));
         const sortedCharacters = Object.entries(characterCounts).sort(([,a], [,b]) => b - a).map(([label, value]) => ({ label, value }));
         

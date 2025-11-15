@@ -7,15 +7,15 @@ interface ResultsViewProps {
 
 const ALL_COLUMNS = [
   { key: 'id', name: '№' },
-  { key: 'location', name: 'Локация' },
-  { key: 'timeOfDay', name: 'Время' },
+  { key: 'object', name: 'Локация' },
+  { key: 'mode', name: 'Время' },
   { key: 'characters', name: 'Персонажи' },
   { key: 'props', name: 'Реквизит' },
-  { key: 'sfx', name: 'Спецэффекты' },
+  { key: 'pyrotechnics', name: 'Спецэффекты' },
   { key: 'makeup', name: 'Грим/Прически' },
   { key: 'stunts', name: 'Каскадеры' },
   { key: 'transport', name: 'Транспорт' },
-  { key: 'extras', name: 'Массовка' },
+  { key: 'extras_grouping', name: 'Массовка' },
 ];
 
 const LocationIcon = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4 mr-1.5 text-text-secondary dark:text-dark-text-secondary flex-shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>;
@@ -48,10 +48,10 @@ const ResultsView: React.FC<ResultsViewProps> = ({ data }) => {
     const value = row[colKey as keyof SceneData];
     if (Array.isArray(value)) {
         if (value.length === 0) return <span className="text-text-secondary dark:text-dark-text-secondary">—</span>;
-        return <div className="flex flex-wrap gap-1.5">{value.map((item, index) => <DataTag key={`${item}-${index}`} type={colKey === 'sfx' || colKey === 'stunts' ? 'special' : 'default'}>{item}</DataTag>)}</div>;
+        return <div className="flex flex-wrap gap-1.5">{value.map((item, index) => <DataTag key={`${item}-${index}`} type={colKey === 'pyrotechnics' || colKey === 'stunts' ? 'special' : 'default'}>{item}</DataTag>)}</div>;
     }
-    if (colKey === 'location' || colKey === 'timeOfDay') {
-        return <div className="flex items-center">{colKey === 'location' ? <LocationIcon/> : <TimeIcon/>}{String(value)}</div>
+    if (colKey === 'object' || colKey === 'mode') {
+        return <div className="flex items-center">{colKey === 'object' ? <LocationIcon/> : <TimeIcon/>}{String(value)}</div>
     }
     if (value === '' || value === null || value === undefined) return <span className="text-text-secondary dark:text-dark-text-secondary">—</span>;
 

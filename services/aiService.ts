@@ -1,44 +1,36 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-import type { SceneData, AnalysisOptions } from '../types';
+import type { SceneData } from '../types';
 
 // Let TypeScript know that mammoth.js is available globally from the script tag in index.html
 declare var mammoth: any;
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
 
-const generatePrompt = (options: AnalysisOptions): string => {
-    const basePrompt = `Analyze the provided film script. Your task is to act as a pre-production assistant and break down the script into individual scenes. For each scene, extract the following information and structure it as a JSON array of objects. Each object must represent one scene.
-    
-The properties for each scene object are:
-- id: The scene number (integer). Must be sequential.
-- location: The primary location of the scene (string).
-- timeOfDay: The time of day, e.g., "День", "Ночь", "Утро", "Вечер" (string).
-`;
-    
-    let prompt = basePrompt;
-    
-    const categoryPrompts: Record<string, string> = {
-        characters: '- characters: A list of all speaking characters in the scene (array of strings).\n',
-        extras: '- extras: A description of any background actors or extras needed, including approximate numbers e.g., "10-15 человек" (string).\n',
-        props: '- props: A list of all significant props mentioned or required for the scene (array of strings).\n',
-        sfx: '- sfx: A list of any sound effects or special visual effects described (array of strings).\n',
-        makeup: '- makeup: A list of special makeup or hair requirements (array of strings).\n',
-        stunts: '- stunts: A list of any stunts or special actions required (array of strings).\n',
-        transport: '- transport: A list of any vehicles or modes of transport involved (array of strings).\n',
-    };
+const FULL_ANALYSIS_PROMPT = `You are a professional film production assistant. Your task is to analyze the provided film script and create a detailed breakdown sheet. Structure your output as a valid JSON array of objects, where each object represents a single scene. Each object must have the following properties:
 
-    options.categories.forEach(cat => {
-        if (categoryPrompts[cat]) {
-            prompt += categoryPrompts[cat];
-        }
-    });
-    
-    prompt += `
-Ensure the output is a valid JSON array. If a category is not present in a scene, use an empty array [] for list types or an empty string "" for string types. For example: "props": []. Analyze the entire script from beginning to end. The response must only contain the JSON array, no other text or markdown formatting.
-    `;
-    
-    return prompt;
-};
+- "id": Scene number, as a string (e.g., "1", "4-2", "6-A").
+- "series": Series number, if applicable (string).
+- "mode": Time of day ('День', 'Ночь', 'Утро', 'Вечер').
+- "int_nat": Location type ('Инт' for Interior, 'Нат' for Exterior, or 'Нат/Инт').
+- "object": The main location ('Объект').
+- "sub_object": The sub-location or specific area within the main location ('Подобъект').
+- "synopsis": A brief one-sentence summary of the scene's action.
+- "characters": An array of all speaking characters.
+- "extras_grouping": A description of any extras, background actors, or crowd scenes, including numbers if specified (e.g., "Массовка: Прохожие (10)").
+- "makeup": Description of any special makeup or hair requirements ('Грим').
+- "costume": Description of costumes ('Костюм').
+- "props": Description of all props, including items characters interact with ('Реквизит').
+- "animals": Any animals mentioned ('Животное').
+- "photos": Any on-screen graphics, photos, or digital screen content ('Игровые фото').
+- "transport": All vehicles or modes of transport involved ('Игровой транспорт').
+- "set_decoration": Details about the set, furniture, and environment ('Декорация').
+- "special_equipment": Any special camera, lighting, or other technical equipment needed ('Спец. оборудование').
+- "administration": Administrative notes, permissions, or special arrangements ('Администрация').
+- "stunts": Any physical stunts described ('Трюк').
+- "pyrotechnics": Any pyrotechnics, fire, or special effects like smoke ('Пиротехник').
+
+If a property is not mentioned in a scene, use an empty string "" or an empty array [] for the 'characters' property. The entire response must consist ONLY of the JSON array, with no surrounding text, comments, or markdown formatting.`;
+
 
 // Helper function to convert a File object to a base64-encoded generative part.
 const fileToGenerativePart = async (file: File) => {
@@ -56,17 +48,14 @@ const fileToGenerativePart = async (file: File) => {
 };
 
 export const processScript = async (
-  file: File,
-  options: AnalysisOptions
+  file: File
 ): Promise<SceneData[]> => {
-  console.log(`Starting script processing for ${file.name} with options:`, options);
+  console.log(`Starting full script processing for ${file.name}`);
 
   try {
-    const prompt = generatePrompt(options);
+    const prompt = FULL_ANALYSIS_PROMPT;
     let response: GenerateContentResponse;
 
-    // For DOCX files, extract text client-side to bypass potential MIME type issues.
-    // For PDFs, use the standard multimodal upload which is generally supported.
     if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || file.name.endsWith('.docx')) {
       console.log("DOCX file detected. Extracting text content on the client-side.");
       if (typeof mammoth === 'undefined') {
@@ -84,7 +73,6 @@ export const processScript = async (
       });
 
     } else {
-      // Assume PDF, use multimodal approach
       console.log("PDF file detected. Using multimodal approach.");
       const filePart = await fileToGenerativePart(file);
       const textPart = { text: prompt };
@@ -108,16 +96,26 @@ export const processScript = async (
     const result = JSON.parse(jsonString);
 
     const sanitizedResult = result.map((scene: any) => ({
-        id: scene.id ?? 0,
-        location: scene.location ?? '',
-        timeOfDay: scene.timeOfDay ?? '',
+        id: String(scene.id ?? ''),
+        series: scene.series ?? "",
+        mode: scene.mode ?? "",
+        int_nat: scene.int_nat ?? "",
+        object: scene.object ?? "",
+        sub_object: scene.sub_object ?? "",
+        synopsis: scene.synopsis ?? "",
         characters: scene.characters ?? [],
-        extras: scene.extras ?? '',
-        props: scene.props ?? [],
-        sfx: scene.sfx ?? [],
-        makeup: scene.makeup ?? [],
-        stunts: scene.stunts ?? [],
-        transport: scene.transport ?? [],
+        extras_grouping: scene.extras_grouping ?? "",
+        makeup: scene.makeup ?? "",
+        costume: scene.costume ?? "",
+        props: scene.props ?? "",
+        animals: scene.animals ?? "",
+        photos: scene.photos ?? "",
+        transport: scene.transport ?? "",
+        set_decoration: scene.set_decoration ?? "",
+        special_equipment: scene.special_equipment ?? "",
+        administration: scene.administration ?? "",
+        stunts: scene.stunts ?? "",
+        pyrotechnics: scene.pyrotechnics ?? "",
     }));
     return sanitizedResult as SceneData[];
 

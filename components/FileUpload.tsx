@@ -3,7 +3,7 @@ import type { SceneData, AnalysisOptions, AnalysisCategory } from '../types';
 import ProcessingView from './ProcessingView';
 
 interface FileUploadProps {
-  onFileUpload: (file: File, options: AnalysisOptions) => void;
+  onFileUpload: (file: File) => void;
   isProcessing: boolean;
   fileName: string;
   processedData: SceneData[] | null;
@@ -39,7 +39,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isProcessing, fil
 
   const handleFileAction = (file: File | null) => {
     if (file) {
-      onFileUpload(file, analysisOptions);
+      onFileUpload(file);
     }
   };
 

@@ -57,14 +57,18 @@ const BarChart: React.FC<BarChartProps> = ({ title, data }) => {
 
 const StatisticsView: React.FC<StatisticsViewProps> = ({ data }) => {
     const stats = useMemo(() => {
-        const locations = new Set(data.map(s => s.location));
+        // FIX: Property 'location' does not exist on type 'SceneData'. Use 'object' instead.
+        const locations = new Set(data.map(s => s.object));
         const characters = new Set(data.flatMap(s => s.characters));
-        const dayScenes = data.filter(s => s.timeOfDay.toLowerCase() === 'день' || s.timeOfDay.toLowerCase() === 'утро').length;
-        const nightScenes = data.filter(s => s.timeOfDay.toLowerCase() === 'вечер' || s.timeOfDay.toLowerCase() === 'ночь').length;
+        // FIX: Property 'timeOfDay' does not exist on type 'SceneData'. Use 'mode' instead.
+        const dayScenes = data.filter(s => s.mode.toLowerCase() === 'день' || s.mode.toLowerCase() === 'утро').length;
+        // FIX: Property 'timeOfDay' does not exist on type 'SceneData'. Use 'mode' instead.
+        const nightScenes = data.filter(s => s.mode.toLowerCase() === 'вечер' || s.mode.toLowerCase() === 'ночь').length;
 
         // FIX: Explicitly type the accumulator for the reduce function to ensure correct type inference.
         const locationCounts = data.reduce<Record<string, number>>((acc, scene) => {
-            acc[scene.location] = (acc[scene.location] || 0) + 1;
+            // FIX: Property 'location' does not exist on type 'SceneData'. Use 'object' instead.
+            acc[scene.object] = (acc[scene.object] || 0) + 1;
             return acc;
         }, {});
 

@@ -18,55 +18,96 @@ const ExportView: React.FC<ExportViewProps> = ({ data, fileName }) => {
             return;
         }
 
-        const dataForSheet = data.map(row => ({
-            '№': row.id,
-            'Локация': row.location,
-            'Время': row.timeOfDay,
-            'Персонажи': row.characters.join(', '),
-            'Реквизит': row.props.join(', '),
-            'Спецэффекты': row.sfx.join(', '),
-            'Грим/Прически': row.makeup.join(', '),
-            'Каскадеры': row.stunts.join(', '),
-            'Транспорт': row.transport.join(', '),
-            'Массовка': row.extras,
-        }));
+        const headers = [
+            "Серия", "Сцена", "Режим", "Инт / нат", "Объект", "Подобъект", "Синопсис", 
+            "Персонажи", "Массовка / Групповка", "Грим / Костюм", 
+            "Реквизит / Животное / Игровые фото", "Игровой транспорт", "Декорация",
+            "Спец. оборудование / Администрация /", "Трюк / Пиротехник"
+        ];
 
-        const worksheet = XLSX.utils.json_to_sheet(dataForSheet);
+        const sheetData = data.map(row => ([
+            row.series || "",
+            row.id,
+            row.mode,
+            row.int_nat,
+            row.object,
+            row.sub_object || "",
+            row.synopsis,
+            row.characters.join('\n'),
+            row.extras_grouping,
+            [row.makeup, row.costume].filter(Boolean).join('\n'),
+            [row.props, row.animals, row.photos].filter(Boolean).join('\n'),
+            row.transport,
+            row.set_decoration,
+            [row.special_equipment, row.administration].filter(Boolean).join('\n'),
+            [row.stunts, row.pyrotechnics].filter(Boolean).join('\n'),
+        ]));
+
+        const worksheet = XLSX.utils.aoa_to_sheet([headers, ...sheetData]);
+
+        const headerStyle = {
+            font: { bold: true, color: { rgb: "FFFFFF" } },
+            fill: { fgColor: { rgb: "4F2F7E" } },
+            alignment: { horizontal: 'center', vertical: 'center', wrapText: true }
+        };
+        const cellStyle = {
+            alignment: { vertical: 'top', wrapText: true }
+        };
+
+        const range = XLSX.utils.decode_range(worksheet['!ref'] || "A1");
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+            const headerCellAddress = XLSX.utils.encode_cell({ r: 0, c: C });
+            if (worksheet[headerCellAddress]) {
+                worksheet[headerCellAddress].s = headerStyle;
+            }
+
+            for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+                const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                if (worksheet[cellAddress]) {
+                    worksheet[cellAddress].s = cellStyle;
+                }
+            }
+        }
+
+        worksheet['!cols'] = [
+            { wch: 8 },  // Серия
+            { wch: 8 },  // Сцена
+            { wch: 10 }, // Режим
+            { wch: 10 }, // Инт / нат
+            { wch: 25 }, // Объект
+            { wch: 25 }, // Подобъект
+            { wch: 45 }, // Синопсис
+            { wch: 25 }, // Персонажи
+            { wch: 30 }, // Массовка / Групповка
+            { wch: 35 }, // Грим / Костюм
+            { wch: 40 }, // Реквизит...
+            { wch: 25 }, // Игровой транспорт
+            { wch: 25 }, // Декорация
+            { wch: 35 }, // Спец...
+            { wch: 25 }, // Трюк...
+        ];
+        
+        // Set a default row height for better readability with wrapped text
+        worksheet['!rows'] = [{ hpt: 30 }]; // Header row
+        for(let i=0; i < sheetData.length; i++) {
+            worksheet['!rows'][i+1] = { hpt: 80 };
+        }
+
+
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Breakdown");
-
-        const wscols = [
-            { wch: 5 },   // №
-            { wch: 30 },  // Локация
-            { wch: 10 },  // Время
-            { wch: 40 },  // Персонажи
-            { wch: 40 },  // Реквизит
-            { wch: 25 },  // Спецэффекты
-            { wch: 25 },  // Грим/Прически
-            { wch: 25 },  // Каскадеры
-            { wch: 25 },  // Транспорт
-            { wch: 20 },  // Массовка
-        ];
-        worksheet['!cols'] = wscols;
-
         XLSX.writeFile(workbook, `${getCleanFileName()}.xlsx`);
     };
 
     const exportToCSV = () => {
-        const headers = ['ID', 'Location', 'Time of Day', 'Characters', 'Props', 'SFX', 'Makeup', 'Stunts', 'Transport', 'Extras'].join(',');
+        const headers = ['ID', 'Series', 'Mode', 'Int/Nat', 'Object', 'Sub-Object', 'Synopsis', 'Characters', 'Extras', 'Makeup', 'Costume', 'Props', 'Animals', 'Photos', 'Transport', 'Set Decoration', 'Special Equipment', 'Admin', 'Stunts', 'Pyrotechnics'].join(',');
         const rows = data.map(row => {
             return [
-                row.id,
-                row.location,
-                row.timeOfDay,
-                row.characters.join('; '),
-                row.props.join('; '),
-                row.sfx.join('; '),
-                row.makeup.join('; '),
-                row.stunts.join('; '),
-                row.transport.join('; '),
-                row.extras,
-            ].map(val => `"${String(val).replace(/"/g, '""')}"`).join(',');
+                row.id, row.series, row.mode, row.int_nat, row.object, row.sub_object, row.synopsis,
+                row.characters.join('; '), row.extras_grouping, row.makeup, row.costume, row.props, row.animals,
+                row.photos, row.transport, row.set_decoration, row.special_equipment, row.administration,
+                row.stunts, row.pyrotechnics
+            ].map(val => `"${String(val || '').replace(/"/g, '""')}"`).join(',');
         }).join('\n');
 
         const bom = new Uint8Array([0xEF, 0xBB, 0xBF]); // UTF-8 BOM

@@ -62,21 +62,23 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ data }) => {
         const dayScenes = data.filter(s => s.mode.toLowerCase() === 'день' || s.mode.toLowerCase() === 'утро').length;
         const nightScenes = data.filter(s => s.mode.toLowerCase() === 'вечер' || s.mode.toLowerCase() === 'ночь').length;
 
-        // FIX: Provide a generic type argument to `reduce` to correctly type the accumulator.
-        // The initial value `{}` is too generic, causing TypeScript to infer the result as `{}`,
-        // which leads to errors in `Object.entries` and `.sort`.
-        const locationCounts = data.reduce<Record<string, number>>((acc, scene) => {
+        // FIX: The type of the accumulator for `reduce` was not being inferred correctly.
+        // Explicitly casting the initial value `{}` to `Record<string, number>` ensures that
+        // `locationCounts` is properly typed, which in turn fixes the type errors in the `.sort()` method.
+        const locationCounts = data.reduce((acc, scene) => {
             acc[scene.object] = (acc[scene.object] || 0) + 1;
             return acc;
-        }, {});
+        }, {} as Record<string, number>);
 
-        // FIX: Provide a generic type argument to `reduce` to correctly type the accumulator.
-        const characterCounts = data.reduce<Record<string, number>>((acc, scene) => {
+        // FIX: The type of the accumulator for `reduce` was not being inferred correctly.
+        // Explicitly casting the initial value `{}` to `Record<string, number>` ensures that
+        // `characterCounts` is properly typed, which in turn fixes the type errors in the `.sort()` method.
+        const characterCounts = data.reduce((acc, scene) => {
             scene.characters.forEach(char => {
                 acc[char] = (acc[char] || 0) + 1;
             });
             return acc;
-        }, {});
+        }, {} as Record<string, number>);
 
         // With `locationCounts` and `characterCounts` correctly typed, the sort function now correctly infers `a` and `b` as numbers.
         const sortedLocations = Object.entries(locationCounts).sort(([,a], [,b]) => b - a).map(([label, value]) => ({ label, value }));

@@ -16,6 +16,12 @@ const ArrowUpTrayIcon = () => (
     </svg>
 );
 
+const InfoIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 ml-1 text-gray-400 dark:text-gray-500 cursor-pointer">
+        <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+    </svg>
+);
+
 
 const ALL_CATEGORIES: { id: AnalysisCategory; name: string }[] = [
     { id: 'characters', name: 'Персонажи и массовка' },
@@ -155,10 +161,30 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, isProcessing, fil
              <h3 className="text-lg font-semibold text-text-primary dark:text-dark-text-primary">Технические характеристики</h3>
              <p className="text-sm text-text-secondary dark:text-dark-text-secondary mb-4">Параметры обработки</p>
              <ul className="text-sm space-y-3">
-                <li className="flex justify-between"><span>Макс. размер документа</span> <span className="font-semibold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full text-xs">120 страниц</span></li>
-                <li className="flex justify-between"><span>Время обработки</span> <span className="font-semibold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full text-xs">~ 2-5 минут</span></li>
-                <li className="flex justify-between"><span>Модель ИИ</span> <span className="font-semibold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full text-xs">Gemini 2.5 Pro</span></li>
-                <li className="flex justify-between"><span>Кодировки</span> <span className="font-semibold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full text-xs">UTF-8, CP1251</span></li>
+                <li className="flex justify-between items-center"><span>Макс. размер документа</span> <span className="font-semibold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full text-xs">120 страниц</span></li>
+                <li className="flex justify-between items-center"><span>Время обработки</span> <span className="font-semibold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full text-xs">~ 2-5 минут</span></li>
+                <li className="flex justify-between items-center">
+                    <span>Модель ИИ</span>
+                    <div className="relative group flex items-center">
+                        <span className="font-semibold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full text-xs">Mixtral 8x22B</span>
+                        <InfoIcon />
+                        <div className="absolute hidden group-hover:block bottom-full right-0 mb-2 w-max max-w-xs p-2 bg-gray-800 text-white text-xs rounded shadow-lg z-10 whitespace-pre-line text-left">
+                            <b>Альтернативные модели:</b>
+                            {`\n- Llama 3 70B\n- Gemma 7B\n- Phi-3`}
+                        </div>
+                    </div>
+                </li>
+                <li className="flex justify-between items-center">
+                    <span>Кодировки</span>
+                    <div className="relative group flex items-center">
+                        <span className="font-semibold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full text-xs">UTF-8, CP1251</span>
+                        <InfoIcon />
+                        <div className="absolute hidden group-hover:block bottom-full right-0 mb-2 w-max max-w-xs p-2 bg-gray-800 text-white text-xs rounded shadow-lg z-10 whitespace-pre-line text-left">
+                            <b>Поддерживаемые кодировки:</b>
+                            {`\n- UTF-8, UTF-16\n- CP1251 (Windows-1251)\n- KOI8-R, ISO-8859-5\n- MacRoman, ASCII`}
+                        </div>
+                    </div>
+                </li>
              </ul>
         </div>
       </div>

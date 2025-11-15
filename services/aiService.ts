@@ -1,10 +1,9 @@
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import type { SceneData, AnalysisOptions, AnalysisCategory } from '../types';
 
 // Let TypeScript know that mammoth.js is available globally from the script tag in index.html
 declare var mammoth: any;
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+const API_ENDPOINT = process.env.API_ENDPOINT || '/api/generate-breakdown';
 
 const PROMPT_BASE = `You are a professional film production assistant. Your task is to analyze the provided film script and create a detailed breakdown sheet. Structure your output as a valid JSON array of objects, where each object represents a single scene. Each object must have the following mandatory properties:
 
@@ -50,31 +49,18 @@ const generatePrompt = (options: AnalysisOptions): string => {
     return prompt;
 };
 
-// Helper function to convert a File object to a base64-encoded generative part.
-const fileToGenerativePart = async (file: File) => {
-  const base64EncodedDataPromise = new Promise<string>((resolve) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-    reader.readAsDataURL(file);
-  });
-  return {
-    inlineData: {
-      data: await base64EncodedDataPromise,
-      mimeType: file.type,
-    },
-  };
-};
-
 export const processScript = async (
   file: File,
   options: AnalysisOptions
 ): Promise<SceneData[]> => {
-  console.log(`Starting script processing for ${file.name} with options:`, options.categories);
+  console.log(`Starting script processing for ${file.name} with local open-source model.`);
+
+  const formData = new FormData();
+  const prompt = generatePrompt(options);
+  formData.append('prompt', prompt);
+  formData.append('options', JSON.stringify(options));
 
   try {
-    const prompt = generatePrompt(options);
-    let response: GenerateContentResponse;
-
     if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || file.name.endsWith('.docx')) {
       console.log("DOCX file detected. Extracting text content on the client-side.");
       if (typeof mammoth === 'undefined') {
@@ -82,37 +68,26 @@ export const processScript = async (
       }
       const arrayBuffer = await file.arrayBuffer();
       const { value: scriptText } = await mammoth.extractRawText({ arrayBuffer });
-      console.log("Text extracted. Sending as a text-only prompt.");
-      
-      const fullPrompt = `${prompt}\n\nHere is the script text to analyze:\n\n${scriptText}`;
-
-      response = await ai.models.generateContent({
-        model: 'gemini-2.5-pro',
-        contents: [{ parts: [{ text: fullPrompt }] }],
-      });
-
+      console.log("Text extracted. Sending as text data.");
+      formData.append('script_text', scriptText);
     } else {
-      console.log("PDF file detected. Using multimodal approach.");
-      const filePart = await fileToGenerativePart(file);
-      const textPart = { text: prompt };
+      console.log("PDF file detected. Sending file data.");
+      formData.append('file', file);
+    }
 
-      console.log("Sending file and prompt to Gemini...");
-      response = await ai.models.generateContent({
-        model: 'gemini-2.5-pro',
-        contents: [{ parts: [filePart, textPart] }], 
-      });
+    const response = await fetch(API_ENDPOINT, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+        throw new Error(`Local API request failed with status ${response.status}: ${response.statusText}`);
     }
     
-    console.log("Received response from Gemini.");
+    console.log("Received response from local model.");
 
-    let jsonString = response.text.trim();
-    if (jsonString.startsWith('```json')) {
-      jsonString = jsonString.slice(7, -3).trim();
-    } else if (jsonString.startsWith('```')) {
-      jsonString = jsonString.slice(3, -3).trim();
-    }
-    
-    const result = JSON.parse(jsonString);
+    // The local API is expected to return a clean JSON array directly.
+    const result = await response.json();
 
     const sanitizedResult = result.map((scene: any) => ({
         id: String(scene.id ?? ''),
@@ -139,7 +114,7 @@ export const processScript = async (
     return sanitizedResult as SceneData[];
 
   } catch (e) {
-    console.error("Failed to parse Gemini response:", e);
-    throw new Error("Could not parse the breakdown from the script.");
+    console.error("Failed to parse or fetch from the local model:", e);
+    throw new Error("Could not parse the breakdown from the script. The local model might be offline or returned an invalid format.");
   }
 };

@@ -1,0 +1,5 @@
+{
+  "name": "Scenarist AI: Pre-production Assistant",
+  "description": "An intelligent tool to automatically analyze film scripts and generate pre-production breakdown sheets. Upload a script in .pdf or .docx format to get a structured table of scenes, characters, props, locations, and more.",
+  "requestFramePermissions": []
+}

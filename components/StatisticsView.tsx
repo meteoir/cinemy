@@ -63,22 +63,22 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ data }) => {
         const nightScenes = data.filter(s => s.mode.toLowerCase() === 'вечер' || s.mode.toLowerCase() === 'ночь').length;
 
         // FIX: The type of the accumulator for `reduce` was not being inferred correctly.
-        // Explicitly typing the `acc` parameter ensures that `locationCounts` is
-        // correctly typed, which in turn fixes the type errors in the `.sort()` method.
-        const locationCounts = data.reduce((acc: Record<string, number>, scene) => {
+        // By casting the initial value `{}`, we explicitly tell TypeScript that the result
+        // of the reduce operation will be a Record<string, number>.
+        const locationCounts = data.reduce((acc, scene) => {
             acc[scene.object] = (acc[scene.object] || 0) + 1;
             return acc;
-        }, {});
+        }, {} as Record<string, number>);
 
         // FIX: The type of the accumulator for `reduce` was not being inferred correctly.
-        // Explicitly typing the `acc` parameter ensures that `characterCounts` is
-        // correctly typed, which in turn fixes the type errors in the `.sort()` method.
-        const characterCounts = data.reduce((acc: Record<string, number>, scene) => {
+        // By casting the initial value `{}`, we explicitly tell TypeScript that the result
+        // of the reduce operation will be a Record<string, number>.
+        const characterCounts = data.reduce((acc, scene) => {
             scene.characters.forEach(char => {
                 acc[char] = (acc[char] || 0) + 1;
             });
             return acc;
-        }, {});
+        }, {} as Record<string, number>);
 
         // With `locationCounts` and `characterCounts` correctly typed, the sort function now correctly infers `a` and `b` as numbers.
         const sortedLocations = Object.entries(locationCounts).sort(([,a], [,b]) => b - a).map(([label, value]) => ({ label, value }));

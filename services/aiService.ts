@@ -1,9 +1,11 @@
+import { GoogleGenAI } from "@google/genai";
 import type { SceneData, AnalysisOptions, AnalysisCategory } from '../types';
 
 // Let TypeScript know that mammoth.js is available globally from the script tag in index.html
 declare var mammoth: any;
 
-const API_ENDPOINT = process.env.API_ENDPOINT || '/api/generate-breakdown';
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+
 
 const PROMPT_BASE = `You are a professional film production assistant. Your task is to analyze the provided film script and create a detailed breakdown sheet. Structure your output as a valid JSON array of objects, where each object represents a single scene. Each object must have the following mandatory properties:
 
@@ -49,47 +51,71 @@ const generatePrompt = (options: AnalysisOptions): string => {
     return prompt;
 };
 
+const fileToGenerativePart = async (file: File) => {
+    const base64EncodedData = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
+    return {
+      inlineData: {
+        mimeType: file.type,
+        data: base64EncodedData,
+      },
+    };
+  };
+
 export const processScript = async (
   file: File,
   options: AnalysisOptions
 ): Promise<SceneData[]> => {
-  console.log(`Starting script processing for ${file.name} with local open-source model.`);
+  console.log(`Starting script processing for ${file.name} with Gemini.`);
 
-  const formData = new FormData();
   const prompt = generatePrompt(options);
-  formData.append('prompt', prompt);
-  formData.append('options', JSON.stringify(options));
 
   try {
+    let contents;
+
     if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || file.name.endsWith('.docx')) {
-      console.log("DOCX file detected. Extracting text content on the client-side.");
-      if (typeof mammoth === 'undefined') {
-          throw new Error("Mammoth.js library is not loaded. Cannot process DOCX files.");
-      }
-      const arrayBuffer = await file.arrayBuffer();
-      const { value: scriptText } = await mammoth.extractRawText({ arrayBuffer });
-      console.log("Text extracted. Sending as text data.");
-      formData.append('script_text', scriptText);
+        console.log("DOCX file detected. Extracting text content on the client-side.");
+        if (typeof mammoth === 'undefined') {
+            throw new Error("Mammoth.js library is not loaded. Cannot process DOCX files.");
+        }
+        const arrayBuffer = await file.arrayBuffer();
+        const { value: scriptText } = await mammoth.extractRawText({ arrayBuffer });
+        contents = `${prompt}\n\nHere is the script content:\n\n${scriptText}`;
+    } else if (file.type === 'application/pdf') {
+        console.log("PDF file detected. Sending file data to Gemini.");
+        const filePart = await fileToGenerativePart(file);
+        contents = { parts: [{ text: prompt }, filePart] };
     } else {
-      console.log("PDF file detected. Sending file data.");
-      formData.append('file', file);
-    }
-
-    const response = await fetch(API_ENDPOINT, {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-        throw new Error(`Local API request failed with status ${response.status}: ${response.statusText}`);
+        throw new Error("Unsupported file format. Please use PDF or DOCX.");
     }
     
-    console.log("Received response from local model.");
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents,
+    });
 
-    // The local API is expected to return a clean JSON array directly.
-    const result = await response.json();
+    const responseText = response.text;
+    console.log("Received response from Gemini.");
 
-    const sanitizedResult = result.map((scene: any) => ({
+    let jsonString = responseText.trim();
+    if (jsonString.startsWith('```json')) {
+      jsonString = jsonString.substring(7).trim();
+    }
+    if (jsonString.endsWith('```')) {
+      jsonString = jsonString.substring(0, jsonString.length - 3).trim();
+    }
+    
+    const parsedResult = JSON.parse(jsonString);
+
+    if (!Array.isArray(parsedResult)) {
+        throw new Error("The model returned data in an unexpected format. Expected a JSON array.");
+    }
+
+    const sanitizedResult = parsedResult.map((scene: any) => ({
         id: String(scene.id ?? ''),
         series: scene.series ?? "",
         mode: scene.mode ?? "",
@@ -97,7 +123,7 @@ export const processScript = async (
         object: scene.object ?? "",
         sub_object: scene.sub_object ?? "",
         synopsis: scene.synopsis ?? "",
-        characters: scene.characters ?? [],
+        characters: Array.isArray(scene.characters) ? scene.characters : [],
         extras_grouping: scene.extras_grouping ?? "",
         makeup: scene.makeup ?? "",
         costume: scene.costume ?? "",
@@ -114,7 +140,11 @@ export const processScript = async (
     return sanitizedResult as SceneData[];
 
   } catch (e) {
-    console.error("Failed to parse or fetch from the local model:", e);
-    throw new Error("Could not parse the breakdown from the script. The local model might be offline or returned an invalid format.");
+    console.error("Failed to process script with Gemini:", e);
+    if (e instanceof SyntaxError) {
+        throw new Error("Could not parse the breakdown from the script. The model returned an invalid JSON format.");
+    }
+    // Re-throw other errors to be handled by the caller
+    throw e;
   }
 };
